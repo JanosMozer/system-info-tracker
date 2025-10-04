@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLURM Cluster Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .is-hot {
+            background-color: #ffcdd2 !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-4">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">SLURM Cluster Dashboard</h1>
+            <p class="text-gray-600">Real-time monitoring of jobs and system resources.</p>
+        </header>
+
+        <!-- System Stats -->
+        <section id="system-stats" class="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Populated by JavaScript -->
+        </section>
+
+        <!-- GPU Stats -->
+        <section class="mb-6">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-700">GPU Status</h2>
+            <div id="gpu-stats" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Populated by JavaScript -->
+            </div>
+        </section>
+        
+        <!-- Slurm Jobs -->
+        <section>
+            <h2 class="text-2xl font-semibold mb-4 text-gray-700">SLURM Jobs</h2>
+            <div class="bg-white p-4 rounded-lg shadow-md overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                            <th class="py-3 px-6">Job ID</th>
+                            <th class="py-3 px-6">Name</th>
+                            <th class="py-3 px-6">User</th>
+                            <th class="py-3 px-6">State</th>
+                            <th class="py-3 px-6">Nodes</th>
+                            <th class="py-3 px-6">CPUs</th>
+                            <th class="py-3 px-6">Memory</th>
+                            <th class="py-3 px-6">Walltime</th>
+                        </tr>
+                    </thead>
+                    <tbody id="slurm-jobs" class="text-gray-600 text-sm font-light">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const API_KEY = "{{ api_key or '' }}";
+        const POLL_INTERVAL = {{ poll_interval }};
+
+        function fetchData() {
+            const headers = {};
+            if (API_KEY) {
+                headers['X-API-KEY'] = API_KEY;
+            }
+
+            fetch('/api/metrics', { headers })
+                .then(response => response.json())
+                .then(data => {
+                    updateSystemStats(data.system_stats);
+                    updateGpuStats(data.gpu_stats);
+                    updateSlurmJobs(data.slurm_jobs);
+                })
+                .catch(error => console.error('Error fetching data:', error));
+        }
+
+        function updateSystemStats(stats) {
+            const container = document.getElementById('system-stats');
+            container.innerHTML = `
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <h3 class="font-bold text-gray-600">CPU Usage</h3>
+                    <p class="text-2xl">${stats.cpu_usage_percent}%</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <h3 class="font-bold text-gray-600">Memory Usage</h3>
+                    <p class="text-2xl">${stats.memory_usage_percent}%</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <h3 class="font-bold text-gray-600">Memory Used</h3>
+                    <p class="text-2xl">${stats.memory_used_gb} GB</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <h3 class="font-bold text-gray-600">Total Memory</h3>
+                    <p class="text-2xl">${stats.memory_total_gb} GB</p>
+                </div>
+            `;
+        }
+
+        function updateGpuStats(gpus) {
+            const container = document.getElementById('gpu-stats');
+            if (gpus.length === 0) {
+                container.innerHTML = '<p class="text-gray-500">No GPUs detected.</p>';
+                return;
+            }
+            container.innerHTML = gpus.map(gpu => `
+                <div class="bg-white p-4 rounded-lg shadow-md ${gpu.is_hot ? 'is-hot' : ''}">
+                    <h4 class="font-bold text-gray-800">${gpu.gpu_name}</h4>
+                    <p><strong>Temp:</strong> ${gpu.temperature}°C</p>
+                    <p><strong>GPU Util:</strong> ${gpu.gpu_utilization}%</p>
+                    <p><strong>Mem Util:</strong> ${gpu.memory_utilization}%</p>
+                    <p><strong>Memory:</strong> ${gpu.memory_used} / ${gpu.memory_total} MiB</p>
+                </div>
+            `).join('');
+        }
+
+        function updateSlurmJobs(jobs) {
+            const tbody = document.getElementById('slurm-jobs');
+             if (jobs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4">No SLURM jobs found.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = jobs.map(job => `
+                <tr class="border-b border-gray-200 hover:bg-gray-100">
+                    <td class="py-3 px-6">${job.id}</td>
+                    <td class="py-3 px-6">${job.name}</td>
+                    <td class="py-3 px-6">${job.user}</td>
+                    <td class="py-3 px-6">
+                        <span class="px-2 py-1 rounded-full text-xs ${job.state === 'RUNNING' ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800'}">
+                            ${job.state}
+                        </span>
+                    </td>
+                    <td class="py-3 px-6">${job.nodes}</td>
+                    <td class="py-3 px-6">${job.cpus}</td>
+                    <td class="py-3 px-6">${job.memory}</td>
+                    <td class="py-3 px-6">${job.walltime}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Initial fetch and set interval for polling
+        fetchData();
+        setInterval(fetchData, POLL_INTERVAL);
+    </script>
+</body>
+</html>

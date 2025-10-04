@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+pydantic
+pyyaml
+pandas
+psutil
+jinja2
+python-dotenv
+requests
