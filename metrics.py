@@ -111,9 +111,13 @@ def get_system_stats():
     cpu_usage = psutil.cpu_percent(interval=1)
     memory_info = psutil.virtual_memory()
     
+    # Handle NaN values that can't be JSON serialized
+    cpu_usage = 0.0 if cpu_usage is None or cpu_usage != cpu_usage else cpu_usage
+    memory_percent = 0.0 if memory_info.percent is None or memory_info.percent != memory_info.percent else memory_info.percent
+    
     return {
         "cpu_usage_percent": cpu_usage,
-        "memory_usage_percent": memory_info.percent,
+        "memory_usage_percent": memory_percent,
         "memory_total_gb": round(memory_info.total / (1024**3), 2),
         "memory_used_gb": round(memory_info.used / (1024**3), 2)
     }
