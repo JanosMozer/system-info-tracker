@@ -2,7 +2,7 @@
 venv/
 env/
 .venv/
-
+config.yaml
 # Python
 __pycache__/
 *.py[cod]

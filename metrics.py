@@ -108,7 +108,13 @@ def get_system_stats():
     """
     Fetches system-wide CPU and memory statistics.
     """
-    cpu_usage = psutil.cpu_percent(interval=1)
+    # Get CPU usage over a shorter interval for more responsive updates
+    # but also check if there's any recent activity
+    cpu_usage = psutil.cpu_percent(interval=0.1)
+    if cpu_usage == 0.0:
+        # If no activity detected, get average over last interval
+        cpu_usage = psutil.cpu_percent(interval=None)
+    
     memory_info = psutil.virtual_memory()
     
     # Handle NaN values that can't be JSON serialized
@@ -116,8 +122,8 @@ def get_system_stats():
     memory_percent = 0.0 if memory_info.percent is None or memory_info.percent != memory_info.percent else memory_info.percent
     
     return {
-        "cpu_usage_percent": cpu_usage,
-        "memory_usage_percent": memory_percent,
+        "cpu_usage_percent": round(cpu_usage, 1),
+        "memory_usage_percent": round(memory_percent, 1),
         "memory_total_gb": round(memory_info.total / (1024**3), 2),
         "memory_used_gb": round(memory_info.used / (1024**3), 2)
     }
