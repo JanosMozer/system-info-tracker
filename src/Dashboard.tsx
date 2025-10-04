@@ -1,28 +1,61 @@
 import React, { useState, useEffect } from 'react';
-import { MetricsData, SlurmJob, GpuStats, SystemStats, mockData } from './mockData';
+import { MetricsData, GpuStats, mockData } from './mockData';
 
 const Dashboard: React.FC = () => {
   const [data, setData] = useState<MetricsData>(mockData);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [useRealData, setUseRealData] = useState<boolean>(false); // Toggle between mock and real data
 
-  // Simulate data updates every 10 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Slightly randomize the mock data to simulate live updates
-      const updatedData = {
-        ...mockData,
-        system_stats: {
-          ...mockData.system_stats,
-          cpu_usage_percent: Math.max(0, Math.min(100, mockData.system_stats.cpu_usage_percent + (Math.random() - 0.5) * 10)),
-          memory_usage_percent: Math.max(0, Math.min(100, mockData.system_stats.memory_usage_percent + (Math.random() - 0.5) * 5))
-        }
-      };
-      setData(updatedData);
+  const fetchRealData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('http://localhost:8080/api/metrics');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const realData = await response.json();
+      setData(realData);
       setLastUpdate(new Date());
-    }, 10000);
+    } catch (err) {
+      console.error('Failed to fetch real data:', err);
+      setError('Failed to fetch data from Python backend. Using mock data.');
+      // Fall back to mock data if real data fails
+      setData(mockData);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  // Fetch data (real or mock) every 10 seconds
+  useEffect(() => {
+    const fetchData = () => {
+      if (useRealData) {
+        fetchRealData();
+      } else {
+        // Use mock data with slight randomization
+        const updatedData = {
+          ...mockData,
+          system_stats: {
+            ...mockData.system_stats,
+            cpu_usage_percent: Math.max(0, Math.min(100, mockData.system_stats.cpu_usage_percent + (Math.random() - 0.5) * 10)),
+            memory_usage_percent: Math.max(0, Math.min(100, mockData.system_stats.memory_usage_percent + (Math.random() - 0.5) * 5))
+          }
+        };
+        setData(updatedData);
+        setLastUpdate(new Date());
+      }
+    };
+
+    // Initial fetch
+    fetchData();
+
+    // Set up interval
+    const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [useRealData]);
 
   const SystemStatsCard: React.FC<{ title: string; value: string | number; unit?: string }> = ({ title, value, unit = '' }) => (
     <div className="bg-white p-6 rounded-lg shadow-md">
@@ -83,7 +116,38 @@ const Dashboard: React.FC = () => {
         <header className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-800 mb-2">SLURM Cluster Dashboard</h1>
           <p className="text-gray-600">Real-time monitoring of jobs and system resources</p>
-          <p className="text-sm text-gray-500 mt-2">Last updated: {lastUpdate.toLocaleTimeString()}</p>
+          
+          {/* Data Source Toggle */}
+          <div className="mt-4 flex items-center justify-center space-x-4">
+            <button
+              onClick={() => setUseRealData(!useRealData)}
+              className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                useRealData 
+                  ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {useRealData ? '🔴 Live Data' : '🟡 Mock Data'}
+            </button>
+            
+            {isLoading && (
+              <div className="flex items-center text-blue-600">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                Loading...
+              </div>
+            )}
+            
+            {error && (
+              <div className="text-red-600 text-sm max-w-md">
+                ⚠️ {error}
+              </div>
+            )}
+          </div>
+          
+          <p className="text-sm text-gray-500 mt-2">
+            Last updated: {lastUpdate.toLocaleTimeString()}
+            {useRealData && ' (from Python backend)'}
+          </p>
         </header>
 
         {/* System Stats */}

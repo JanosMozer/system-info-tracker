@@ -7,7 +7,7 @@ import os
 
 # --- Mock Data ---
 # Set this to False to use live data from shell commands
-USE_MOCK_DATA = True
+USE_MOCK_DATA = False
 
 MOCK_SQUEUE_OUTPUT = """JOBID,NAME,USER,STATE,NODES,CPUS,MEMORY,SUBMIT_TIME,START_TIME,TIME_LEFT,NODELIST(REASON)
 72892,bash,user1,RUNNING,1,1,500M,2025-10-04T10:00:00,2025-10-04T10:00:05,3-00:00:00,gpu-node-01

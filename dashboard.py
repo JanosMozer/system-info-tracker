@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.security import APIKeyHeader
+from fastapi.middleware.cors import CORSMiddleware
 import yaml
 import metrics
 
@@ -17,6 +18,15 @@ app = FastAPI(
     title="SLURM & System Info Tracker",
     description="A web dashboard to monitor a SLURM cluster and system resources.",
     version="1.0.0"
+)
+
+# Add CORS middleware to allow React app to connect
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # React dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 templates = Jinja2Templates(directory="templates")
